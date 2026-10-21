@@ -59,6 +59,15 @@
             </div>
           </fieldset>
 
+          <fieldset class="control-group" id="decimalPrecisionGroup">
+            <legend>Разрядность дробей</legend>
+            <div class="segmented precision-segmented" role="radiogroup" aria-label="Разрядность дробей">
+              <label><input type="radio" name="decimalPrecision" value="tenths" checked /><span>Десятые<small>12,3</small></span></label>
+              <label><input type="radio" name="decimalPrecision" value="hundredths" /><span>Сотые<small>12,34</small></span></label>
+              <label><input type="radio" name="decimalPrecision" value="rounded" /><span>Шаг 0,05<small>1,20 · 1,35</small></span></label>
+            </div>
+          </fieldset>
+
           <div class="voice-row">
             <div>
               <strong>Голосовой режим</strong>

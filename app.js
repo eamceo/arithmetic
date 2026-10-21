@@ -56,15 +56,17 @@ function randomInt(min, max) {
 function pick(items) { return items[randomInt(0, items.length - 1)]; }
 function normalize(value) { return Math.round(Number(value) * 100) / 100; }
 function displayNumber(value) { return String(normalize(value)).replace('.', ','); }
+function displayFixed(value, places) { return Number(value).toFixed(places).replace('.', ','); }
 
 function currentSettings() {
   const operations = [...document.querySelectorAll('input[name="operation"]:checked')].map((input) => input.value);
   const difficulty = document.querySelector('input[name="difficulty"]:checked').value;
-  return { operations, difficulty, voice: elements.voiceMode.checked };
+  const decimalPrecision = document.querySelector('input[name="decimalPrecision"]:checked').value;
+  return { operations, difficulty, decimalPrecision, voice: elements.voiceMode.checked };
 }
 
 function generateQuestion() {
-  const { operations, difficulty } = currentSettings();
+  const { operations, difficulty, decimalPrecision } = currentSettings();
   const operation = pick(operations);
   const limit = ranges[difficulty].add;
   let a; let b; let answer; let visual; let spoken;
@@ -85,9 +87,13 @@ function generateQuestion() {
     visual = `${a} ÷ ${b}`; spoken = `${a} разделить на ${b}`;
   } else if (operation === 'decimal') {
     const decimalLimit = ranges[difficulty].decimal;
-    a = randomInt(2, decimalLimit * 10) / 10; b = randomInt(1, decimalLimit * 10) / 10;
-    answer = normalize(a + b); visual = `${displayNumber(a)} + ${displayNumber(b)}`;
-    spoken = `${displayNumber(a)} плюс ${displayNumber(b)}`;
+    const decimalStep = decimalPrecision === 'tenths' ? 0.1 : decimalPrecision === 'hundredths' ? 0.01 : 0.05;
+    const decimalPlaces = decimalPrecision === 'tenths' ? 1 : 2;
+    const maxUnits = Math.round(decimalLimit / decimalStep);
+    a = randomInt(2, maxUnits) * decimalStep; b = randomInt(1, maxUnits) * decimalStep;
+    answer = normalize(a + b);
+    visual = `${displayFixed(a, decimalPlaces)} + ${displayFixed(b, decimalPlaces)}`;
+    spoken = `${displayFixed(a, decimalPlaces)} плюс ${displayFixed(b, decimalPlaces)}`;
   } else {
     const percentages = difficulty === 'easy' ? [10, 50] : difficulty === 'medium' ? [5, 10, 20, 25, 50] : [2, 5, 10, 12.5, 15, 20, 25, 30, 40, 50, 75];
     const percent = pick(percentages);
@@ -178,8 +184,7 @@ function startSpeechTimer() {
 
 function wordsToNumber(raw) {
   let value = raw.toLowerCase().trim().replace(/ё/g, 'е').replace(/,/g, '.');
-  const numeric = value.match(/-?\d+(?:\.\d+)?/);
-  if (numeric) return Number(numeric[0]);
+  if (/^-?\d+(?:\.\d+)?$/.test(value)) return Number(value);
 
   const units = { ноль: 0, один: 1, одна: 1, одно: 1, два: 2, две: 2, три: 3, четыре: 4, пять: 5, шесть: 6, семь: 7, восемь: 8, девять: 9, десять: 10, одиннадцать: 11, двенадцать: 12, тринадцать: 13, четырнадцать: 14, пятнадцать: 15, шестнадцать: 16, семнадцать: 17, восемнадцать: 18, девятнадцать: 19 };
   const tens = { двадцать: 20, тридцать: 30, сорок: 40, пятьдесят: 50, шестьдесят: 60, семьдесят: 70, восемьдесят: 80, девяносто: 90 };
@@ -190,7 +195,8 @@ function wordsToNumber(raw) {
   const parseInteger = (part) => {
     let total = 0;
     part.split(/\s+/).forEach((word) => {
-      if (word in units) total += units[word];
+      if (/^\d+$/.test(word)) total += Number(word);
+      else if (word in units) total += units[word];
       else if (word in tens) total += tens[word];
       else if (word in hundreds) total += hundreds[word];
       else if (word.startsWith('тысяч')) total *= 1000;
@@ -199,9 +205,14 @@ function wordsToNumber(raw) {
   };
   let result = parseInteger(decimalParts[0]);
   if (decimalParts[1]) {
-    const decimal = parseInteger(decimalParts[1]);
-    const digits = decimalParts[1].split(/\s+/).length === 1 ? String(decimal).length : decimalParts[1].split(/\s+/).length;
-    result += decimal / (10 ** digits);
+    const decimalText = decimalParts[1];
+    const decimal = parseInteger(decimalText);
+    let denominator;
+    if (/десят/.test(decimalText)) denominator = 10;
+    else if (/сот/.test(decimalText)) denominator = 100;
+    else if (/тысяч/.test(decimalText)) denominator = 1000;
+    else denominator = 10 ** Math.max(1, String(decimal).length);
+    result += decimal / denominator;
   }
   return sign * result;
 }
@@ -322,6 +333,7 @@ elements.sound.addEventListener('click', () => {
 elements.reset.addEventListener('click', () => {
   document.querySelectorAll('input[name="operation"]').forEach((input) => { input.checked = ['add', 'subtract'].includes(input.value); });
   document.querySelector('input[name="difficulty"][value="easy"]').checked = true;
+  document.querySelector('input[name="decimalPrecision"][value="tenths"]').checked = true;
   elements.voiceMode.checked = true;
 });
 document.addEventListener('visibilitychange', () => { if (state.active && document.visibilityState === 'visible') requestWakeLock(); });
