@@ -24,6 +24,7 @@ const elements = {
   battlePreviewTitle: document.querySelector('#battlePreviewTitle'),
   battlePreviewDetails: document.querySelector('#battlePreviewDetails'),
   battlePreviewTotal: document.querySelector('#battlePreviewTotal'),
+  decimalPrecisionGroup: document.querySelector('#decimalPrecisionGroup'),
   battleStage: document.querySelector('.battle-stage'),
   playerCombatant: document.querySelector('.player-combatant'),
   playerHearts: document.querySelector('#playerHearts'),
@@ -63,6 +64,7 @@ const state = {
   enemyIndex: 0,
   enemyHp: 0,
   enemyMaxHp: 0,
+  wave: 1,
   questionStartedAt: 0,
 };
 
@@ -77,10 +79,17 @@ const operationNames = {
   divide: 'деление', decimal: 'дроби', percent: 'проценты',
 };
 
-const battleConfigs = {
-  easy: { title: 'Лёгкий поход', playerHp: 5, enemyHp: 4, bossHp: 8 },
-  medium: { title: 'Испытание героя', playerHp: 4, enemyHp: 6, bossHp: 12 },
-  hard: { title: 'Последний рубеж', playerHp: 3, enemyHp: 8, bossHp: 16 },
+const sessionConfigs = {
+  20: { title: 'Короткий поход', enemyHp: 4, bossHp: 8, target: 20 },
+  50: { title: 'Большое испытание', enemyHp: 10, bossHp: 20, target: 50 },
+  100: { title: 'Длинный поход', enemyHp: 20, bossHp: 40, target: 100 },
+  infinite: { title: 'Бесконечный поход', enemyHp: 10, bossHp: 20, target: null },
+};
+
+const difficultyConfigs = {
+  easy: { label: 'Легко', limit: 20, playerHp: 5 },
+  medium: { label: 'Средний', limit: 100, playerHp: 4 },
+  hard: { label: 'Интенсивный', limit: 1000, playerHp: 3 },
 };
 
 const enemies = [
@@ -102,9 +111,10 @@ function displayFixed(value, places) { return Number(value).toFixed(places).repl
 function currentSettings() {
   const operations = [...document.querySelectorAll('input[name="operation"]:checked')].map((input) => input.value);
   const difficulty = document.querySelector('input[name="difficulty"]:checked').value;
+  const sessionLength = document.querySelector('input[name="sessionLength"]:checked').value;
   const decimalPrecision = document.querySelector('input[name="decimalPrecision"]:checked').value;
   const recognitionLanguage = document.querySelector('input[name="recognitionLanguage"]:checked').value;
-  return { operations, difficulty, decimalPrecision, recognitionLanguage, voice: elements.voiceMode.checked };
+  return { operations, difficulty, sessionLength, decimalPrecision, recognitionLanguage, voice: elements.voiceMode.checked };
 }
 
 function generateQuestion(difficultyOverride = null) {
@@ -200,19 +210,29 @@ function playBattleCue(type) {
 }
 
 function battleDifficulty() {
-  const selected = currentSettings().difficulty;
-  if (!enemies[state.enemyIndex]?.boss) return selected;
-  if (selected === 'easy') return 'medium';
-  return 'hard';
+  return currentSettings().difficulty;
 }
 
 function updateBattlePreview() {
-  const difficulty = document.querySelector('input[name="difficulty"]:checked').value;
-  const config = battleConfigs[difficulty];
-  const total = (config.enemyHp * 3) + config.bossHp;
+  const settings = currentSettings();
+  const config = sessionConfigs[settings.sessionLength];
+  const difficulty = difficultyConfigs[settings.difficulty];
   elements.battlePreviewTitle.textContent = config.title;
-  elements.battlePreviewDetails.textContent = `${config.playerHp} жизней · враги: ${config.enemyHp} HP · босс: ${config.bossHp} HP`;
-  elements.battlePreviewTotal.textContent = `Без бонусов ${total} правильных ответов до победы`;
+  elements.battlePreviewDetails.textContent = `${difficulty.label}: числа до ${difficulty.limit} · ${difficulty.playerHp} жизней`;
+  elements.battlePreviewTotal.textContent = config.target
+    ? `Ровно ${config.target} правильных ответов до победы`
+    : 'Без финала · сила врагов растёт с каждой волной';
+}
+
+function updateDecimalOptions() {
+  const enabled = Boolean(document.querySelector('input[name="operation"][value="decimal"]:checked'));
+  elements.decimalPrecisionGroup.classList.toggle('is-hidden', !enabled);
+}
+
+function enemyMaxHpFor(index) {
+  const base = enemies[index].boss ? state.battleConfig.bossHp : state.battleConfig.enemyHp;
+  if (state.battleConfig.target) return base;
+  return base + ((state.wave - 1) * (enemies[index].boss ? 4 : 2));
 }
 
 function updateBattleHud() {
@@ -221,12 +241,14 @@ function updateBattleHud() {
   const emptyHearts = '♡ '.repeat(Math.max(0, state.playerMaxHp - state.playerHp));
   elements.playerHearts.textContent = `${fullHearts}${emptyHearts}`.trim();
   elements.playerHearts.setAttribute('aria-label', `Жизни игрока: ${state.playerHp} из ${state.playerMaxHp}`);
-  elements.encounterLabel.textContent = enemy.boss ? 'Босс · финальный бой' : `Враг ${state.enemyIndex + 1} из ${enemies.length}`;
+  elements.encounterLabel.textContent = state.battleConfig.target
+    ? (enemy.boss ? 'Босс · финальный бой' : `Враг ${state.enemyIndex + 1} из ${enemies.length}`)
+    : `Волна ${state.wave} · ${enemy.boss ? 'босс' : `враг ${state.enemyIndex + 1}`}`;
   elements.enemyName.textContent = enemy.name;
   elements.enemyAvatar.textContent = enemy.icon;
   elements.enemyHealthText.textContent = `${Math.max(0, state.enemyHp)} / ${state.enemyMaxHp} HP`;
   elements.enemyHealthBar.style.width = `${Math.max(0, (state.enemyHp / state.enemyMaxHp) * 100)}%`;
-  elements.battleHint.textContent = `Без бонусов: ${state.enemyMaxHp} правильных · серия ×3 усиливает удар`;
+  elements.battleHint.textContent = `1 верный ответ = 1 урон · серия ×3 усиливает эффект`;
   elements.battleStage.classList.toggle('is-boss', Boolean(enemy.boss));
 }
 
@@ -362,13 +384,12 @@ function checkAnswer(rawAnswer) {
   if (isCorrect) {
     const quick = Date.now() - state.questionStartedAt <= 8000;
     const combo = state.streak % 3 === 0;
-    const damage = 1 + (quick ? 1 : 0) + (combo ? 1 : 0);
-    state.enemyHp = Math.max(0, state.enemyHp - damage);
+    state.enemyHp = Math.max(0, state.enemyHp - 1);
     updateBattleHud();
     animateHit(elements.enemyAvatar, 'enemy-hit');
     const bonuses = [quick ? 'быстро' : '', combo ? 'серия ×3' : ''].filter(Boolean).join(' + ');
     elements.feedback.className = 'feedback correct';
-    elements.feedback.textContent = `Верно! Урон: ${damage}${bonuses ? ` · ${bonuses}` : ''}`;
+    elements.feedback.textContent = `Верно! Урон: 1${bonuses ? ` · усиление: ${bonuses}` : ''}`;
     if (state.enemyHp <= 0) {
       state.awaitingAnswer = false;
       state.nextTimer = setTimeout(handleEnemyDefeated, 900);
@@ -393,15 +414,21 @@ function checkAnswer(rawAnswer) {
 function handleEnemyDefeated() {
   if (!state.active) return;
   const defeated = enemies[state.enemyIndex];
-  if (defeated.boss) {
+  if (defeated.boss && state.battleConfig.target) {
     endBattle(true);
     return;
   }
   playBattleCue('enemy');
   elements.feedback.className = 'feedback correct';
-  elements.feedback.textContent = `${defeated.name} повержен!`;
-  state.enemyIndex += 1;
-  state.enemyMaxHp = enemies[state.enemyIndex].boss ? state.battleConfig.bossHp : state.battleConfig.enemyHp;
+  if (defeated.boss) {
+    elements.feedback.textContent = `Волна ${state.wave} пройдена!`;
+    state.wave += 1;
+    state.enemyIndex = 0;
+  } else {
+    elements.feedback.textContent = `${defeated.name} повержен!`;
+    state.enemyIndex += 1;
+  }
+  state.enemyMaxHp = enemyMaxHpFor(state.enemyIndex);
   state.enemyHp = state.enemyMaxHp;
   updateBattleHud();
   const nextEnemy = enemies[state.enemyIndex];
@@ -495,9 +522,9 @@ function startSession() {
     return;
   }
   state.active = true; state.answered = 0; state.correct = 0; state.streak = 0;
-  state.battleConfig = battleConfigs[settings.difficulty];
-  state.playerMaxHp = state.battleConfig.playerHp; state.playerHp = state.playerMaxHp;
-  state.enemyIndex = 0; state.enemyMaxHp = state.battleConfig.enemyHp; state.enemyHp = state.enemyMaxHp;
+  state.battleConfig = sessionConfigs[settings.sessionLength];
+  state.playerMaxHp = difficultyConfigs[settings.difficulty].playerHp; state.playerHp = state.playerMaxHp;
+  state.wave = 1; state.enemyIndex = 0; state.enemyMaxHp = enemyMaxHpFor(0); state.enemyHp = state.enemyMaxHp;
   requestWakeLock();
   elements.correct.textContent = '0'; elements.streak.textContent = '0'; elements.accuracy.textContent = '—';
   elements.setup.classList.add('is-hidden'); elements.training.classList.remove('is-hidden');
@@ -540,12 +567,16 @@ elements.sound.addEventListener('click', () => {
 elements.reset.addEventListener('click', () => {
   document.querySelectorAll('input[name="operation"]').forEach((input) => { input.checked = ['add', 'subtract'].includes(input.value); });
   document.querySelector('input[name="difficulty"][value="easy"]').checked = true;
+  document.querySelector('input[name="sessionLength"][value="20"]').checked = true;
   document.querySelector('input[name="decimalPrecision"][value="tenths"]').checked = true;
   document.querySelector('input[name="recognitionLanguage"][value="ru-RU"]').checked = true;
   elements.voiceMode.checked = true;
+  updateDecimalOptions();
   updateBattlePreview();
 });
 document.querySelectorAll('input[name="difficulty"]').forEach((input) => input.addEventListener('change', updateBattlePreview));
+document.querySelectorAll('input[name="sessionLength"]').forEach((input) => input.addEventListener('change', updateBattlePreview));
+document.querySelectorAll('input[name="operation"]').forEach((input) => input.addEventListener('change', updateDecimalOptions));
 document.addEventListener('visibilitychange', () => { if (state.active && document.visibilityState === 'visible') requestWakeLock(); });
 
 if (!SpeechRecognition) {
@@ -554,5 +585,6 @@ if (!SpeechRecognition) {
 }
 
 setupRecognition();
+updateDecimalOptions();
 updateBattlePreview();
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('./sw.js');

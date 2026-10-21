@@ -53,13 +53,23 @@
           <fieldset class="control-group">
             <legend>Сложность</legend>
             <div class="segmented" role="radiogroup" aria-label="Сложность">
-              <label><input type="radio" name="difficulty" value="easy" checked /><span>Легко<small>до 20</small></span></label>
-              <label><input type="radio" name="difficulty" value="medium" /><span>Средне<small>до 100</small></span></label>
-              <label><input type="radio" name="difficulty" value="hard" /><span>Сложно<small>до 1000</small></span></label>
+              <label><input type="radio" name="difficulty" value="easy" checked /><span>Легко<small>числа до 20</small></span></label>
+              <label><input type="radio" name="difficulty" value="medium" /><span>Средний<small>числа до 100</small></span></label>
+              <label><input type="radio" name="difficulty" value="hard" /><span>Интенсивный<small>числа до 1000</small></span></label>
             </div>
           </fieldset>
 
-          <fieldset class="control-group" id="decimalPrecisionGroup">
+          <fieldset class="control-group">
+            <legend>Длина тренировки</legend>
+            <div class="segmented session-length-segmented" role="radiogroup" aria-label="Длина тренировки">
+              <label><input type="radio" name="sessionLength" value="20" checked /><span>Лёгкая<small>20 вопросов</small></span></label>
+              <label><input type="radio" name="sessionLength" value="50" /><span>Средняя<small>50 вопросов</small></span></label>
+              <label><input type="radio" name="sessionLength" value="100" /><span>Длинная<small>100 вопросов</small></span></label>
+              <label><input type="radio" name="sessionLength" value="infinite" /><span>∞<small>без финала</small></span></label>
+            </div>
+          </fieldset>
+
+          <fieldset class="control-group is-hidden" id="decimalPrecisionGroup">
             <legend>Разрядность дробей</legend>
             <div class="segmented precision-segmented" role="radiogroup" aria-label="Разрядность дробей">
               <label><input type="radio" name="decimalPrecision" value="tenths" checked /><span>Десятые<small>12,3</small></span></label>
@@ -80,9 +90,9 @@
             <div class="battle-preview-icon" aria-hidden="true">⚔</div>
             <div>
               <span>Боевой маршрут</span>
-              <strong id="battlePreviewTitle">Лёгкий поход</strong>
-              <p id="battlePreviewDetails">5 жизней · враги: 4 HP · босс: 8 HP</p>
-              <small id="battlePreviewTotal">Без бонусов 20 правильных ответов до победы</small>
+              <strong id="battlePreviewTitle">Короткий поход</strong>
+              <p id="battlePreviewDetails">Легко: числа до 20 · 5 жизней</p>
+              <small id="battlePreviewTotal">Ровно 20 правильных ответов до победы</small>
             </div>
           </div>
 
@@ -169,7 +179,7 @@
           <span class="step-number">02</span>
           <h2 id="howTitle">Как это работает</h2>
           <ol>
-            <li><span>01</span><div><strong>Выберите уровень</strong><p>Настройте действия и сложность под себя.</p></div></li>
+            <li><span>01</span><div><strong>Настройте бой</strong><p>Выберите действия, диапазон чисел и длину тренировки.</p></div></li>
             <li><span>02</span><div><strong>Наденьте наушники</strong><p>Приложение произнесёт пример вслух.</p></div></li>
             <li><span>03</span><div><strong>Победите босса</strong><p>Верные ответы наносят урон, ошибки отнимают жизни.</p></div></li>
           </ol>

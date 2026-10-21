@@ -53,6 +53,7 @@ h2 { margin: 0; font-family: Georgia, serif; font-size: 31px; font-weight: 400; 
 .segmented span { display: flex; min-height: 58px; flex-direction: column; align-items: center; justify-content: center; border-radius: 11px; color: var(--muted); font-size: 13px; cursor: pointer; }
 .segmented small { margin-top: 3px; opacity: .65; font-size: 10px; }
 .segmented input:checked + span { color: #111; background: var(--acid); font-weight: 800; }
+.session-length-segmented { grid-template-columns: repeat(4, 1fr); }
 .precision-segmented span { padding-inline: 6px; }
 .precision-segmented small { white-space: nowrap; }
 .language-segmented { grid-template-columns: repeat(2, 1fr); }
@@ -154,6 +155,7 @@ footer { display: flex; justify-content: space-between; padding: 25px 0; border-
   .app-shell { padding-inline: 14px; }
   .hero { padding-top: 52px; }
   .operation-grid { grid-template-columns: repeat(2, 1fr); }
+  .session-length-segmented { grid-template-columns: repeat(2, 1fr); }
   .answer-form { flex-wrap: wrap; }
   .submit-button { width: 100%; }
   .battle-stage { grid-template-columns: 84px 1fr 70px; gap: 7px; padding-inline: 9px; }

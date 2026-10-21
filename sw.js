@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mental-math-v6';
+const CACHE_NAME = 'mental-math-v7';
 const ASSETS = ['./', './index.html', './styles.css', './app.js', './manifest.webmanifest', './icon.svg', './hero-knight.png'];
 
 self.addEventListener('install', (event) => event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))));
