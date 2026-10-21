@@ -144,6 +144,19 @@ function askNextQuestion() {
   });
 }
 
+function retryCurrentQuestion() {
+  if (!state.active || !state.question) return;
+  elements.answerInput.value = '';
+  elements.feedback.textContent = '';
+  elements.feedback.className = 'feedback';
+  elements.spokenAnswer.textContent = currentSettings().voice ? 'Слушайте тот же вопрос…' : 'Попробуйте ещё раз';
+  speak(state.question.spoken, () => {
+    state.awaitingAnswer = true;
+    if (state.active && currentSettings().voice) startListening();
+    else elements.answerInput.focus();
+  });
+}
+
 function wordsToNumber(raw) {
   let value = raw.toLowerCase().trim().replace(/ё/g, 'е').replace(/,/g, '.');
   const numeric = value.match(/-?\d+(?:\.\d+)?/);
@@ -187,11 +200,11 @@ function checkAnswer(rawAnswer) {
   elements.streak.textContent = state.streak;
   elements.accuracy.textContent = `${Math.round((state.correct / state.answered) * 100)}%`;
   elements.feedback.className = `feedback ${isCorrect ? 'correct' : 'wrong'}`;
-  elements.feedback.textContent = isCorrect ? 'Верно!' : `Правильный ответ: ${displayNumber(state.question.answer)}`;
+  elements.feedback.textContent = isCorrect ? 'Верно!' : 'Неверно. Попробуйте ещё раз.';
   elements.spokenAnswer.textContent = `Ваш ответ: ${String(rawAnswer).trim()}`;
   playTone(isCorrect);
   clearTimeout(state.nextTimer);
-  state.nextTimer = setTimeout(askNextQuestion, isCorrect ? 900 : 1600);
+  state.nextTimer = setTimeout(isCorrect ? askNextQuestion : retryCurrentQuestion, isCorrect ? 900 : 1400);
 }
 
 function setupRecognition() {
