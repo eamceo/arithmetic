@@ -60,6 +60,13 @@ h2 { margin: 0; font-family: Georgia, serif; font-size: 31px; font-weight: 400; 
 .voice-row strong, .voice-row span { display: block; }
 .voice-row strong { font-size: 14px; }
 .voice-row > div > span { margin-top: 4px; color: var(--muted); font-size: 12px; }
+.battle-preview { display: flex; gap: 16px; align-items: center; margin: 4px 0 22px; padding: 17px; border: 1px solid rgb(201 242 124 / 35%); border-radius: 16px; background: linear-gradient(120deg, rgb(201 242 124 / 10%), transparent 62%), #121712; }
+.battle-preview-icon { flex: 0 0 auto; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; color: #111; background: var(--acid); font-size: 22px; }
+.battle-preview span, .battle-preview strong, .battle-preview small { display: block; }
+.battle-preview span { color: var(--acid); font-size: 10px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
+.battle-preview strong { margin-top: 3px; font: 19px Georgia, serif; }
+.battle-preview p { margin: 4px 0 2px; color: var(--muted); font-size: 12px; }
+.battle-preview small { color: #737c73; font-size: 10px; }
 .switch { position: relative; flex: 0 0 auto; }
 .switch input { position: absolute; opacity: 0; }
 .switch > span:first-of-type { width: 50px; height: 29px; border-radius: 99px; background: #3a403b; cursor: pointer; transition: .2s; }
@@ -70,12 +77,31 @@ h2 { margin: 0; font-family: Georgia, serif; font-size: 31px; font-weight: 400; 
 .primary-button:hover { filter: brightness(1.06); transform: translateY(-1px); }
 .privacy-note { margin: 12px 0 0; color: #707870; font-size: 10px; text-align: center; }
 
-.training-card { position: relative; overflow: hidden; min-height: 560px; }
+.training-card { position: relative; overflow: hidden; min-height: 720px; }
 .training-card::before { content: ""; position: absolute; inset: -160px auto auto 50%; width: 420px; height: 300px; transform: translateX(-50%); border-radius: 50%; background: rgb(201 242 124 / 8%); filter: blur(50px); pointer-events: none; }
 .training-topline, .stats-row, .answer-form { position: relative; display: flex; align-items: center; }
 .training-topline { justify-content: space-between; }
 .pulse { animation: pulse 1.6s infinite; }
-.stats-row { justify-content: center; margin: 35px 0 14px; }
+.battle-stage { position: relative; display: grid; grid-template-columns: 112px 1fr 92px; gap: 12px; align-items: center; min-height: 152px; margin: 25px 0 12px; padding: 14px; border: 1px solid var(--line); border-radius: 19px; background: radial-gradient(circle at 18% 42%, rgb(201 242 124 / 13%), transparent 35%), #111512; }
+.battle-stage.is-boss { border-color: rgb(255 211 111 / 45%); background: radial-gradient(circle at 84% 42%, rgb(255 142 125 / 12%), transparent 35%), #151311; }
+.combatant { position: relative; min-width: 0; text-align: center; }
+.combatant-label { display: block; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.player-avatar { height: 106px; display: flex; align-items: flex-end; justify-content: center; margin-top: -18px; }
+.player-avatar img { width: 118px; max-height: 132px; object-fit: contain; filter: drop-shadow(0 12px 16px rgb(0 0 0 / 45%)); }
+.player-hearts { min-height: 15px; margin-top: 2px; color: var(--danger); font-size: 13px; letter-spacing: 1px; white-space: nowrap; }
+.encounter-info { min-width: 0; text-align: center; }
+.encounter-info span, .encounter-info strong, .encounter-info small { display: block; }
+.encounter-info span { color: var(--acid); font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.encounter-info strong { margin: 7px 0 6px; font: 18px/1.05 Georgia, serif; }
+.encounter-info small { color: var(--muted); font-size: 10px; line-height: 1.35; }
+.enemy-avatar { width: 66px; height: 66px; display: grid; place-items: center; margin: 5px auto 7px; border: 1px solid rgb(201 242 124 / 32%); border-radius: 50%; color: var(--acid); background: #222922; font-size: 29px; box-shadow: inset 0 0 24px rgb(201 242 124 / 8%); }
+.is-boss .enemy-avatar { color: #ffd36f; border-color: rgb(255 211 111 / 45%); background: #2b211b; }
+.enemy-health { height: 6px; overflow: hidden; border-radius: 99px; background: #353b35; }
+.enemy-health i { display: block; width: 100%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--danger), #ffd36f); transition: width .35s ease; }
+.enemy-health-text { display: block; margin-top: 4px; color: var(--muted); font-size: 9px; }
+.enemy-hit { animation: enemyHit .32s ease; }
+.player-hit { animation: playerHit .38s ease; }
+.stats-row { justify-content: center; margin: 17px 0 10px; }
 .stats-row > div { min-width: 92px; padding: 0 20px; border-right: 1px solid var(--line); text-align: center; }
 .stats-row > div:last-child { border: 0; }
 .stats-row span, .stats-row small { display: block; }
@@ -95,6 +121,19 @@ h2 { margin: 0; font-family: Georgia, serif; font-size: 31px; font-weight: 400; 
 .feedback.correct { color: var(--acid); }
 .feedback.wrong { color: var(--danger); }
 .repeat-button { display: block; margin: 9px auto 0; font-size: 12px; }
+.battle-result { position: absolute; z-index: 10; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 34px; text-align: center; background: radial-gradient(circle at 50% 30%, rgb(201 242 124 / 14%), transparent 35%), rgb(13 16 14 / 97%); }
+.battle-result-icon { display: grid; place-items: center; width: 82px; height: 82px; margin-bottom: 22px; border: 1px solid var(--acid); border-radius: 50%; color: #111; background: var(--acid); font-size: 37px; box-shadow: 0 0 50px rgb(201 242 124 / 20%); }
+.battle-result.defeat .battle-result-icon { border-color: var(--danger); background: var(--danger); box-shadow: 0 0 50px rgb(255 142 125 / 15%); }
+.battle-result h2 { margin: 10px 0 8px; font-size: 42px; }
+.battle-result > p { max-width: 360px; margin: 0 0 24px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.result-stats { display: flex; margin-bottom: 27px; }
+.result-stats > div { min-width: 100px; padding: 0 22px; border-right: 1px solid var(--line); }
+.result-stats > div:last-child { border: 0; }
+.result-stats strong, .result-stats small { display: block; }
+.result-stats strong { font: 32px Georgia, serif; }
+.result-stats small { margin-top: 4px; color: var(--muted); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; }
+.battle-result .primary-button { max-width: 340px; }
+.result-exit { margin-top: 18px; }
 
 .how-it-works { padding: 74px 4px 55px; }
 .how-it-works h2 { margin: 10px 0 30px; }
@@ -109,12 +148,21 @@ footer { display: flex; justify-content: space-between; padding: 25px 0; border-
 
 @keyframes pulse { 50% { opacity: .45; transform: scale(.8); } }
 @keyframes listening { 50% { box-shadow: 0 0 0 9px rgb(201 242 124 / 15%); } }
+@keyframes enemyHit { 35% { transform: translateX(7px) rotate(5deg); filter: brightness(1.7); } }
+@keyframes playerHit { 30% { transform: translateX(-7px); filter: saturate(.2) brightness(1.5); } }
 @media (max-width: 520px) {
   .app-shell { padding-inline: 14px; }
   .hero { padding-top: 52px; }
   .operation-grid { grid-template-columns: repeat(2, 1fr); }
   .answer-form { flex-wrap: wrap; }
   .submit-button { width: 100%; }
+  .battle-stage { grid-template-columns: 84px 1fr 70px; gap: 7px; padding-inline: 9px; }
+  .player-avatar { height: 94px; margin-top: -13px; }
+  .player-avatar img { width: 101px; max-height: 116px; }
+  .enemy-avatar { width: 54px; height: 54px; font-size: 23px; }
+  .encounter-info strong { font-size: 15px; }
+  .player-hearts { font-size: 11px; letter-spacing: 0; }
+  .battle-result { padding: 25px; }
   footer { gap: 14px; flex-direction: column; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; } }

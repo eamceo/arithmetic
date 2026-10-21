@@ -76,6 +76,16 @@
             </div>
           </fieldset>
 
+          <div class="battle-preview" id="battlePreview" aria-live="polite">
+            <div class="battle-preview-icon" aria-hidden="true">⚔</div>
+            <div>
+              <span>Боевой маршрут</span>
+              <strong id="battlePreviewTitle">Лёгкий поход</strong>
+              <p id="battlePreviewDetails">5 жизней · враги: 4 HP · босс: 8 HP</p>
+              <small id="battlePreviewTotal">Без бонусов 20 правильных ответов до победы</small>
+            </div>
+          </div>
+
           <div class="voice-row">
             <div>
               <strong>Голосовой режим</strong>
@@ -100,6 +110,25 @@
             <button class="stop-button" id="stopButton" type="button">Завершить</button>
           </div>
 
+          <div class="battle-stage" aria-label="Состояние боя">
+            <div class="combatant player-combatant">
+              <span class="combatant-label">Вы</span>
+              <div class="player-avatar"><img src="hero-knight.png" alt="Котёнок-рыцарь — ваш герой" /></div>
+              <div class="player-hearts" id="playerHearts" aria-label="Жизни игрока">♥ ♥ ♥ ♥ ♥</div>
+            </div>
+            <div class="encounter-info">
+              <span id="encounterLabel">Враг 1 из 4</span>
+              <strong id="enemyName">Счётный слизень</strong>
+              <small id="battleHint">Без бонусов: 4 правильных</small>
+            </div>
+            <div class="combatant enemy-combatant">
+              <span class="combatant-label">Противник</span>
+              <div class="enemy-avatar" id="enemyAvatar" aria-hidden="true">◆</div>
+              <div class="enemy-health"><i id="enemyHealthBar"></i></div>
+              <span class="enemy-health-text" id="enemyHealthText">4 / 4 HP</span>
+            </div>
+          </div>
+
           <div class="stats-row" aria-label="Статистика тренировки">
             <div><span id="correctCount">0</span><small>верно</small></div>
             <div><span id="streakCount">0</span><small>серия</small></div>
@@ -121,6 +150,19 @@
 
           <div class="feedback" id="feedback" role="status"></div>
           <button class="repeat-button" id="repeatButton" type="button">↻ Повторить вопрос</button>
+
+          <div class="battle-result is-hidden" id="battleResult" role="dialog" aria-modal="true" aria-labelledby="battleResultTitle">
+            <span class="battle-result-icon" id="battleResultIcon" aria-hidden="true">★</span>
+            <span class="step-number" id="battleResultKicker">Бой завершён</span>
+            <h2 id="battleResultTitle">Победа!</h2>
+            <p id="battleResultText">Повелитель чисел побеждён.</p>
+            <div class="result-stats">
+              <div><strong id="resultCorrect">0</strong><small>верных</small></div>
+              <div><strong id="resultAccuracy">—</strong><small>точность</small></div>
+            </div>
+            <button class="primary-button" id="rematchButton" type="button"><span>Сразиться снова</span><span aria-hidden="true">↻</span></button>
+            <button class="text-button result-exit" id="resultExitButton" type="button">Вернуться к настройкам</button>
+          </div>
         </section>
 
         <section class="how-it-works" aria-labelledby="howTitle">
@@ -129,7 +171,7 @@
           <ol>
             <li><span>01</span><div><strong>Выберите уровень</strong><p>Настройте действия и сложность под себя.</p></div></li>
             <li><span>02</span><div><strong>Наденьте наушники</strong><p>Приложение произнесёт пример вслух.</p></div></li>
-            <li><span>03</span><div><strong>Ответьте голосом</strong><p>Услышите короткий сигнал и следующий вопрос.</p></div></li>
+            <li><span>03</span><div><strong>Победите босса</strong><p>Верные ответы наносят урон, ошибки отнимают жизни.</p></div></li>
           </ol>
         </section>
       </main>

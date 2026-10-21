@@ -21,6 +21,27 @@ const elements = {
   streak: document.querySelector('#streakCount'),
   accuracy: document.querySelector('#accuracyCount'),
   mode: document.querySelector('#sessionMode'),
+  battlePreviewTitle: document.querySelector('#battlePreviewTitle'),
+  battlePreviewDetails: document.querySelector('#battlePreviewDetails'),
+  battlePreviewTotal: document.querySelector('#battlePreviewTotal'),
+  battleStage: document.querySelector('.battle-stage'),
+  playerCombatant: document.querySelector('.player-combatant'),
+  playerHearts: document.querySelector('#playerHearts'),
+  encounterLabel: document.querySelector('#encounterLabel'),
+  enemyName: document.querySelector('#enemyName'),
+  enemyAvatar: document.querySelector('#enemyAvatar'),
+  enemyHealthBar: document.querySelector('#enemyHealthBar'),
+  enemyHealthText: document.querySelector('#enemyHealthText'),
+  battleHint: document.querySelector('#battleHint'),
+  battleResult: document.querySelector('#battleResult'),
+  battleResultIcon: document.querySelector('#battleResultIcon'),
+  battleResultKicker: document.querySelector('#battleResultKicker'),
+  battleResultTitle: document.querySelector('#battleResultTitle'),
+  battleResultText: document.querySelector('#battleResultText'),
+  resultCorrect: document.querySelector('#resultCorrect'),
+  resultAccuracy: document.querySelector('#resultAccuracy'),
+  rematch: document.querySelector('#rematchButton'),
+  resultExit: document.querySelector('#resultExitButton'),
 };
 
 const state = {
@@ -36,6 +57,13 @@ const state = {
   wakeLock: null,
   nextTimer: null,
   speechTimer: null,
+  battleConfig: null,
+  playerHp: 0,
+  playerMaxHp: 0,
+  enemyIndex: 0,
+  enemyHp: 0,
+  enemyMaxHp: 0,
+  questionStartedAt: 0,
 };
 
 const ranges = {
@@ -48,6 +76,19 @@ const operationNames = {
   add: 'сложение', subtract: 'вычитание', multiply: 'умножение',
   divide: 'деление', decimal: 'дроби', percent: 'проценты',
 };
+
+const battleConfigs = {
+  easy: { title: 'Лёгкий поход', playerHp: 5, enemyHp: 4, bossHp: 8 },
+  medium: { title: 'Испытание героя', playerHp: 4, enemyHp: 6, bossHp: 12 },
+  hard: { title: 'Последний рубеж', playerHp: 3, enemyHp: 8, bossHp: 16 },
+};
+
+const enemies = [
+  { name: 'Счётный слизень', icon: '◆' },
+  { name: 'Дробный разбойник', icon: '◈' },
+  { name: 'Страж процентов', icon: '⬢' },
+  { name: 'Повелитель чисел', icon: '♛', boss: true },
+];
 
 function randomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -66,8 +107,10 @@ function currentSettings() {
   return { operations, difficulty, decimalPrecision, recognitionLanguage, voice: elements.voiceMode.checked };
 }
 
-function generateQuestion() {
-  const { operations, difficulty, decimalPrecision } = currentSettings();
+function generateQuestion(difficultyOverride = null) {
+  const settings = currentSettings();
+  const { operations, decimalPrecision } = settings;
+  const difficulty = difficultyOverride || settings.difficulty;
   const operation = pick(operations);
   const limit = ranges[difficulty].add;
   let a; let b; let answer; let visual; let spoken;
@@ -135,10 +178,69 @@ function playTone(correct) {
   oscillator.onended = () => context.close();
 }
 
+function playBattleCue(type) {
+  if (state.muted) return;
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return;
+  const context = new AudioContextClass();
+  const frequencies = type === 'victory' ? [440, 660, 880] : type === 'defeat' ? [260, 210, 150] : [420, 560];
+  frequencies.forEach((frequency, index) => {
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const start = context.currentTime + (index * .13);
+    oscillator.type = type === 'defeat' ? 'triangle' : 'sine';
+    oscillator.frequency.setValueAtTime(frequency, start);
+    gain.gain.setValueAtTime(.0001, start);
+    gain.gain.exponentialRampToValueAtTime(.12, start + .02);
+    gain.gain.exponentialRampToValueAtTime(.0001, start + .19);
+    oscillator.connect(gain); gain.connect(context.destination);
+    oscillator.start(start); oscillator.stop(start + .2);
+  });
+  setTimeout(() => context.close(), 750);
+}
+
+function battleDifficulty() {
+  const selected = currentSettings().difficulty;
+  if (!enemies[state.enemyIndex]?.boss) return selected;
+  if (selected === 'easy') return 'medium';
+  return 'hard';
+}
+
+function updateBattlePreview() {
+  const difficulty = document.querySelector('input[name="difficulty"]:checked').value;
+  const config = battleConfigs[difficulty];
+  const total = (config.enemyHp * 3) + config.bossHp;
+  elements.battlePreviewTitle.textContent = config.title;
+  elements.battlePreviewDetails.textContent = `${config.playerHp} жизней · враги: ${config.enemyHp} HP · босс: ${config.bossHp} HP`;
+  elements.battlePreviewTotal.textContent = `Без бонусов ${total} правильных ответов до победы`;
+}
+
+function updateBattleHud() {
+  const enemy = enemies[state.enemyIndex];
+  const fullHearts = '♥ '.repeat(Math.max(0, state.playerHp));
+  const emptyHearts = '♡ '.repeat(Math.max(0, state.playerMaxHp - state.playerHp));
+  elements.playerHearts.textContent = `${fullHearts}${emptyHearts}`.trim();
+  elements.playerHearts.setAttribute('aria-label', `Жизни игрока: ${state.playerHp} из ${state.playerMaxHp}`);
+  elements.encounterLabel.textContent = enemy.boss ? 'Босс · финальный бой' : `Враг ${state.enemyIndex + 1} из ${enemies.length}`;
+  elements.enemyName.textContent = enemy.name;
+  elements.enemyAvatar.textContent = enemy.icon;
+  elements.enemyHealthText.textContent = `${Math.max(0, state.enemyHp)} / ${state.enemyMaxHp} HP`;
+  elements.enemyHealthBar.style.width = `${Math.max(0, (state.enemyHp / state.enemyMaxHp) * 100)}%`;
+  elements.battleHint.textContent = `Без бонусов: ${state.enemyMaxHp} правильных · серия ×3 усиливает удар`;
+  elements.battleStage.classList.toggle('is-boss', Boolean(enemy.boss));
+}
+
+function animateHit(target, className) {
+  target.classList.remove(className);
+  void target.offsetWidth;
+  target.classList.add(className);
+  setTimeout(() => target.classList.remove(className), 450);
+}
+
 function askNextQuestion() {
   if (!state.active) return;
   stopListening();
-  state.question = generateQuestion();
+  state.question = generateQuestion(battleDifficulty());
   state.awaitingAnswer = true;
   elements.problem.textContent = state.question.visual;
   elements.problemKicker.textContent = operationNames[state.question.operation];
@@ -147,6 +249,7 @@ function askNextQuestion() {
   elements.feedback.className = 'feedback';
   elements.spokenAnswer.textContent = currentSettings().voice ? 'Слушайте вопрос…' : 'Введите ответ ниже';
   speak(state.question.spoken, () => {
+    state.questionStartedAt = Date.now();
     if (state.active && currentSettings().voice) startListening();
     else elements.answerInput.focus();
   });
@@ -161,6 +264,7 @@ function retryCurrentQuestion(announcement = '') {
   const prompt = announcement ? `${announcement}. ${state.question.spoken}` : state.question.spoken;
   speak(prompt, () => {
     state.awaitingAnswer = true;
+    state.questionStartedAt = Date.now();
     if (state.active && currentSettings().voice) startListening();
     else elements.answerInput.focus();
   });
@@ -251,12 +355,82 @@ function checkAnswer(rawAnswer) {
   elements.correct.textContent = state.correct;
   elements.streak.textContent = state.streak;
   elements.accuracy.textContent = `${Math.round((state.correct / state.answered) * 100)}%`;
-  elements.feedback.className = `feedback ${isCorrect ? 'correct' : 'wrong'}`;
-  elements.feedback.textContent = isCorrect ? 'Верно!' : 'Неверно. Попробуйте ещё раз.';
   elements.spokenAnswer.textContent = `Ваш ответ: ${String(rawAnswer).trim()}`;
   playTone(isCorrect);
   clearTimeout(state.nextTimer);
-  state.nextTimer = setTimeout(isCorrect ? askNextQuestion : retryCurrentQuestion, isCorrect ? 900 : 1400);
+
+  if (isCorrect) {
+    const quick = Date.now() - state.questionStartedAt <= 8000;
+    const combo = state.streak % 3 === 0;
+    const damage = 1 + (quick ? 1 : 0) + (combo ? 1 : 0);
+    state.enemyHp = Math.max(0, state.enemyHp - damage);
+    updateBattleHud();
+    animateHit(elements.enemyAvatar, 'enemy-hit');
+    const bonuses = [quick ? 'быстро' : '', combo ? 'серия ×3' : ''].filter(Boolean).join(' + ');
+    elements.feedback.className = 'feedback correct';
+    elements.feedback.textContent = `Верно! Урон: ${damage}${bonuses ? ` · ${bonuses}` : ''}`;
+    if (state.enemyHp <= 0) {
+      state.awaitingAnswer = false;
+      state.nextTimer = setTimeout(handleEnemyDefeated, 900);
+    } else {
+      state.nextTimer = setTimeout(askNextQuestion, 900);
+    }
+    return;
+  }
+
+  state.playerHp = Math.max(0, state.playerHp - 1);
+  updateBattleHud();
+  animateHit(elements.playerCombatant, 'player-hit');
+  elements.feedback.className = 'feedback wrong';
+  elements.feedback.textContent = `Неверно. Противник атакует — осталось жизней: ${state.playerHp}`;
+  if (state.playerHp <= 0) {
+    state.nextTimer = setTimeout(() => endBattle(false), 900);
+  } else {
+    state.nextTimer = setTimeout(() => retryCurrentQuestion('Ещё раз'), 1400);
+  }
+}
+
+function handleEnemyDefeated() {
+  if (!state.active) return;
+  const defeated = enemies[state.enemyIndex];
+  if (defeated.boss) {
+    endBattle(true);
+    return;
+  }
+  playBattleCue('enemy');
+  elements.feedback.className = 'feedback correct';
+  elements.feedback.textContent = `${defeated.name} повержен!`;
+  state.enemyIndex += 1;
+  state.enemyMaxHp = enemies[state.enemyIndex].boss ? state.battleConfig.bossHp : state.battleConfig.enemyHp;
+  state.enemyHp = state.enemyMaxHp;
+  updateBattleHud();
+  const nextEnemy = enemies[state.enemyIndex];
+  state.nextTimer = setTimeout(() => {
+    speak(`${nextEnemy.boss ? 'Внимание, босс' : 'Новый противник'}: ${nextEnemy.name}`, askNextQuestion);
+  }, 850);
+}
+
+function endBattle(victory) {
+  state.active = false;
+  state.awaitingAnswer = false;
+  clearTimeout(state.nextTimer);
+  clearSpeechTimer();
+  stopListening();
+  window.speechSynthesis?.cancel();
+  state.wakeLock?.release(); state.wakeLock = null;
+  playBattleCue(victory ? 'victory' : 'defeat');
+  const accuracy = state.answered ? `${Math.round((state.correct / state.answered) * 100)}%` : '—';
+  elements.resultCorrect.textContent = state.correct;
+  elements.resultAccuracy.textContent = accuracy;
+  elements.battleResult.classList.toggle('defeat', !victory);
+  elements.battleResultIcon.textContent = victory ? '★' : '×';
+  elements.battleResultKicker.textContent = victory ? 'Маршрут пройден' : 'Забег завершён';
+  elements.battleResultTitle.textContent = victory ? 'Победа!' : 'Поражение';
+  elements.battleResultText.textContent = victory
+    ? 'Повелитель чисел побеждён. Герой выдержал все четыре сражения.'
+    : `${enemies[state.enemyIndex].name} оказался сильнее. Попробуйте ещё раз или измените сложность.`;
+  elements.battleResult.classList.remove('is-hidden');
+  speak(victory ? 'Победа! Повелитель чисел побежден.' : 'Поражение. Попробуйте еще раз.');
 }
 
 function setupRecognition() {
@@ -321,10 +495,16 @@ function startSession() {
     return;
   }
   state.active = true; state.answered = 0; state.correct = 0; state.streak = 0;
+  state.battleConfig = battleConfigs[settings.difficulty];
+  state.playerMaxHp = state.battleConfig.playerHp; state.playerHp = state.playerMaxHp;
+  state.enemyIndex = 0; state.enemyMaxHp = state.battleConfig.enemyHp; state.enemyHp = state.enemyMaxHp;
   requestWakeLock();
   elements.correct.textContent = '0'; elements.streak.textContent = '0'; elements.accuracy.textContent = '—';
   elements.setup.classList.add('is-hidden'); elements.training.classList.remove('is-hidden');
-  elements.mode.textContent = settings.voice && SpeechRecognition ? 'Голосовой режим' : 'Режим с экраном';
+  elements.battleResult.classList.add('is-hidden');
+  elements.battleResult.classList.remove('defeat');
+  updateBattleHud();
+  elements.mode.textContent = settings.voice && SpeechRecognition ? 'Бой · голосовой режим' : 'Бой · режим с экраном';
   elements.training.scrollIntoView({ behavior: 'smooth', block: 'start' });
   askNextQuestion();
 }
@@ -332,12 +512,15 @@ function startSession() {
 function stopSession() {
   state.active = false; state.awaitingAnswer = false; clearTimeout(state.nextTimer); clearSpeechTimer(); stopListening(); window.speechSynthesis?.cancel();
   state.wakeLock?.release(); state.wakeLock = null;
+  elements.battleResult.classList.add('is-hidden');
   elements.training.classList.add('is-hidden'); elements.setup.classList.remove('is-hidden');
   elements.setup.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 elements.start.addEventListener('click', startSession);
 elements.stop.addEventListener('click', stopSession);
+elements.rematch.addEventListener('click', startSession);
+elements.resultExit.addEventListener('click', stopSession);
 elements.answerForm.addEventListener('submit', (event) => { event.preventDefault(); checkAnswer(elements.answerInput.value); });
 elements.mic.addEventListener('click', () => state.listening ? stopListening() : startListening());
 elements.repeat.addEventListener('click', () => {
@@ -360,7 +543,9 @@ elements.reset.addEventListener('click', () => {
   document.querySelector('input[name="decimalPrecision"][value="tenths"]').checked = true;
   document.querySelector('input[name="recognitionLanguage"][value="ru-RU"]').checked = true;
   elements.voiceMode.checked = true;
+  updateBattlePreview();
 });
+document.querySelectorAll('input[name="difficulty"]').forEach((input) => input.addEventListener('change', updateBattlePreview));
 document.addEventListener('visibilitychange', () => { if (state.active && document.visibilityState === 'visible') requestWakeLock(); });
 
 if (!SpeechRecognition) {
@@ -369,4 +554,5 @@ if (!SpeechRecognition) {
 }
 
 setupRecognition();
+updateBattlePreview();
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('./sw.js');
