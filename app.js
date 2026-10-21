@@ -35,6 +35,7 @@ const state = {
   recognition: null,
   wakeLock: null,
   nextTimer: null,
+  speechTimer: null,
 };
 
 const ranges = {
@@ -144,17 +145,35 @@ function askNextQuestion() {
   });
 }
 
-function retryCurrentQuestion() {
+function retryCurrentQuestion(announcement = '') {
   if (!state.active || !state.question) return;
   elements.answerInput.value = '';
   elements.feedback.textContent = '';
   elements.feedback.className = 'feedback';
   elements.spokenAnswer.textContent = currentSettings().voice ? 'Слушайте тот же вопрос…' : 'Попробуйте ещё раз';
-  speak(state.question.spoken, () => {
+  const prompt = announcement ? `${announcement}. ${state.question.spoken}` : state.question.spoken;
+  speak(prompt, () => {
     state.awaitingAnswer = true;
     if (state.active && currentSettings().voice) startListening();
     else elements.answerInput.focus();
   });
+}
+
+function clearSpeechTimer() {
+  clearTimeout(state.speechTimer);
+  state.speechTimer = null;
+}
+
+function startSpeechTimer() {
+  if (state.speechTimer) return;
+  state.speechTimer = setTimeout(() => {
+    if (!state.active || !state.awaitingAnswer) return;
+    state.awaitingAnswer = false;
+    stopListening();
+    elements.spokenAnswer.textContent = 'Не успели закончить. Ещё раз…';
+    clearTimeout(state.nextTimer);
+    state.nextTimer = setTimeout(() => retryCurrentQuestion('Ещё раз'), 350);
+  }, 4000);
 }
 
 function wordsToNumber(raw) {
@@ -188,7 +207,8 @@ function wordsToNumber(raw) {
 }
 
 function checkAnswer(rawAnswer) {
-  if (!state.active || !state.question || !String(rawAnswer).trim()) return;
+  if (!state.active || !state.awaitingAnswer || !state.question || !String(rawAnswer).trim()) return;
+  clearSpeechTimer();
   state.awaitingAnswer = false;
   stopListening();
   const parsed = wordsToNumber(String(rawAnswer));
@@ -211,15 +231,23 @@ function setupRecognition() {
   if (!SpeechRecognition) return;
   state.recognition = new SpeechRecognition();
   state.recognition.lang = 'ru-RU';
-  state.recognition.interimResults = false;
+  state.recognition.interimResults = true;
   state.recognition.continuous = false;
   state.recognition.onstart = () => {
     state.listening = true; elements.mic.classList.add('is-listening'); elements.spokenAnswer.textContent = 'Слушаю ваш ответ…';
   };
   state.recognition.onresult = (event) => {
-    const transcript = event.results[0][0].transcript;
-    elements.answerInput.value = transcript;
-    checkAnswer(transcript);
+    if (!state.awaitingAnswer) return;
+    startSpeechTimer();
+    let transcript = '';
+    let isFinal = false;
+    for (let index = event.resultIndex; index < event.results.length; index += 1) {
+      transcript += event.results[index][0].transcript;
+      if (event.results[index].isFinal) isFinal = true;
+    }
+    elements.answerInput.value = transcript.trim();
+    elements.spokenAnswer.textContent = `Говорите… ${transcript.trim()}`;
+    if (isFinal) checkAnswer(transcript);
   };
   state.recognition.onerror = (event) => {
     if (event.error !== 'aborted') elements.spokenAnswer.textContent = 'Не расслышал. Нажмите микрофон или введите ответ.';
@@ -239,6 +267,7 @@ function startListening() {
 }
 
 function stopListening() {
+  clearSpeechTimer();
   if (!state.recognition || !state.listening) return;
   try { state.recognition.abort(); } catch { /* Сессия уже закрыта. */ }
   state.listening = false; elements.mic.classList.remove('is-listening');
@@ -266,7 +295,7 @@ function startSession() {
 }
 
 function stopSession() {
-  state.active = false; state.awaitingAnswer = false; clearTimeout(state.nextTimer); stopListening(); window.speechSynthesis?.cancel();
+  state.active = false; state.awaitingAnswer = false; clearTimeout(state.nextTimer); clearSpeechTimer(); stopListening(); window.speechSynthesis?.cancel();
   state.wakeLock?.release(); state.wakeLock = null;
   elements.training.classList.add('is-hidden'); elements.setup.classList.remove('is-hidden');
   elements.setup.scrollIntoView({ behavior: 'smooth', block: 'start' });
