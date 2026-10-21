@@ -1,0 +1,11 @@
+{
+  "name": "Счёт на ходу",
+  "short_name": "Счёт",
+  "description": "Голосовой тренажёр устного счёта",
+  "lang": "ru",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#101311",
+  "theme_color": "#101311",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
