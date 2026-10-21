@@ -55,6 +55,7 @@ h2 { margin: 0; font-family: Georgia, serif; font-size: 31px; font-weight: 400; 
 .segmented input:checked + span { color: #111; background: var(--acid); font-weight: 800; }
 .precision-segmented span { padding-inline: 6px; }
 .precision-segmented small { white-space: nowrap; }
+.language-segmented { grid-template-columns: repeat(2, 1fr); }
 .voice-row { display: flex; justify-content: space-between; align-items: center; padding: 21px 0; margin: 4px 0 22px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .voice-row strong, .voice-row span { display: block; }
 .voice-row strong { font-size: 14px; }

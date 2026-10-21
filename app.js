@@ -62,7 +62,8 @@ function currentSettings() {
   const operations = [...document.querySelectorAll('input[name="operation"]:checked')].map((input) => input.value);
   const difficulty = document.querySelector('input[name="difficulty"]:checked').value;
   const decimalPrecision = document.querySelector('input[name="decimalPrecision"]:checked').value;
-  return { operations, difficulty, decimalPrecision, voice: elements.voiceMode.checked };
+  const recognitionLanguage = document.querySelector('input[name="recognitionLanguage"]:checked').value;
+  return { operations, difficulty, decimalPrecision, recognitionLanguage, voice: elements.voiceMode.checked };
 }
 
 function generateQuestion() {
@@ -183,35 +184,55 @@ function startSpeechTimer() {
 }
 
 function wordsToNumber(raw) {
-  let value = raw.toLowerCase().trim().replace(/ё/g, 'е').replace(/,/g, '.');
+  let value = raw.toLowerCase().trim().replace(/ё/g, 'е').replace(/,/g, '.').replace(/-/g, ' ');
   if (/^-?\d+(?:\.\d+)?$/.test(value)) return Number(value);
 
-  const units = { ноль: 0, один: 1, одна: 1, одно: 1, два: 2, две: 2, три: 3, четыре: 4, пять: 5, шесть: 6, семь: 7, восемь: 8, девять: 9, десять: 10, одиннадцать: 11, двенадцать: 12, тринадцать: 13, четырнадцать: 14, пятнадцать: 15, шестнадцать: 16, семнадцать: 17, восемнадцать: 18, девятнадцать: 19 };
-  const tens = { двадцать: 20, тридцать: 30, сорок: 40, пятьдесят: 50, шестьдесят: 60, семьдесят: 70, восемьдесят: 80, девяносто: 90 };
+  const units = {
+    ноль: 0, один: 1, одна: 1, одно: 1, два: 2, две: 2, три: 3, четыре: 4, пять: 5, шесть: 6, семь: 7, восемь: 8, девять: 9,
+    десять: 10, одиннадцать: 11, двенадцать: 12, тринадцать: 13, четырнадцать: 14, пятнадцать: 15, шестнадцать: 16, семнадцать: 17, восемнадцать: 18, девятнадцать: 19,
+    zero: 0, oh: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9,
+    ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19,
+  };
+  const tens = {
+    двадцать: 20, тридцать: 30, сорок: 40, пятьдесят: 50, шестьдесят: 60, семьдесят: 70, восемьдесят: 80, девяносто: 90,
+    twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90,
+  };
   const hundreds = { сто: 100, двести: 200, триста: 300, четыреста: 400, пятьсот: 500, шестьсот: 600, семьсот: 700, восемьсот: 800, девятьсот: 900 };
+  const digitWords = { ноль: 0, один: 1, одна: 1, одно: 1, два: 2, две: 2, три: 3, четыре: 4, пять: 5, шесть: 6, семь: 7, восемь: 8, девять: 9, zero: 0, oh: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9 };
   let sign = 1;
-  if (value.startsWith('минус ')) { sign = -1; value = value.slice(6); }
-  const decimalParts = value.split(/\s+(?:целых|целая|целое|точка|запятая)\s+/);
+  if (/^(?:минус|minus|negative)\s+/.test(value)) { sign = -1; value = value.replace(/^(?:минус|minus|negative)\s+/, ''); }
+
+  let decimalParts = value.split(/\s+(?:целая|целое|целых|целую|точка|запятая|point|dot|decimal|comma|period|whole|wholes)\s+/);
+  if (decimalParts.length === 1) {
+    const fractionalAnd = value.match(/^(.*?)\s+(?:и|and)\s+(.+(?:десят\S*|сот\S*|тысяч\S*|tenths?|hundredths?|thousandths?))$/);
+    if (fractionalAnd) decimalParts = [fractionalAnd[1], fractionalAnd[2]];
+  }
+
   const parseInteger = (part) => {
-    let total = 0;
-    part.split(/\s+/).forEach((word) => {
-      if (/^\d+$/.test(word)) total += Number(word);
-      else if (word in units) total += units[word];
-      else if (word in tens) total += tens[word];
-      else if (word in hundreds) total += hundreds[word];
-      else if (word.startsWith('тысяч')) total *= 1000;
+    let total = 0; let current = 0;
+    part.split(/\s+/).filter(Boolean).forEach((word) => {
+      if (/^\d+$/.test(word)) current += Number(word);
+      else if (word in units) current += units[word];
+      else if (word in tens) current += tens[word];
+      else if (word in hundreds) current += hundreds[word];
+      else if (word === 'hundred') current = (current || 1) * 100;
+      else if (/^тысяч/.test(word) || word === 'thousand') { total += (current || 1) * 1000; current = 0; }
     });
-    return total;
+    return total + current;
   };
   let result = parseInteger(decimalParts[0]);
   if (decimalParts[1]) {
     const decimalText = decimalParts[1];
-    const decimal = parseInteger(decimalText);
+    const decimalTokens = decimalText.split(/\s+/).filter((word) => word && !/^(?:и|and|десятая|десятые|десятых|сотая|сотые|сотых|тысячная|тысячные|тысячных|tenth|tenths|hundredth|hundredths|thousandth|thousandths)$/.test(word));
+    const digitSequence = decimalTokens.length > 0 && decimalTokens.every((word) => word in digitWords || /^\d$/.test(word));
+    const decimal = digitSequence
+      ? Number(decimalTokens.map((word) => (/^\d$/.test(word) ? word : digitWords[word])).join(''))
+      : parseInteger(decimalText);
     let denominator;
-    if (/десят/.test(decimalText)) denominator = 10;
-    else if (/сот/.test(decimalText)) denominator = 100;
-    else if (/тысяч/.test(decimalText)) denominator = 1000;
-    else denominator = 10 ** Math.max(1, String(decimal).length);
+    if (/десят|tenths?/.test(decimalText)) denominator = 10;
+    else if (/сот|hundredths?/.test(decimalText)) denominator = 100;
+    else if (/тысяч|thousandths?/.test(decimalText)) denominator = 1000;
+    else denominator = 10 ** (digitSequence ? decimalTokens.length : Math.max(1, String(decimal).length));
     result += decimal / denominator;
   }
   return sign * result;
@@ -274,7 +295,10 @@ function setupRecognition() {
 
 function startListening() {
   if (!state.recognition || state.listening || !state.active) return;
-  try { state.recognition.start(); } catch { /* Браузер ещё завершает предыдущую сессию. */ }
+  try {
+    state.recognition.lang = currentSettings().recognitionLanguage;
+    state.recognition.start();
+  } catch { /* Браузер ещё завершает предыдущую сессию. */ }
 }
 
 function stopListening() {
@@ -334,6 +358,7 @@ elements.reset.addEventListener('click', () => {
   document.querySelectorAll('input[name="operation"]').forEach((input) => { input.checked = ['add', 'subtract'].includes(input.value); });
   document.querySelector('input[name="difficulty"][value="easy"]').checked = true;
   document.querySelector('input[name="decimalPrecision"][value="tenths"]').checked = true;
+  document.querySelector('input[name="recognitionLanguage"][value="ru-RU"]').checked = true;
   elements.voiceMode.checked = true;
 });
 document.addEventListener('visibilitychange', () => { if (state.active && document.visibilityState === 'visible') requestWakeLock(); });
